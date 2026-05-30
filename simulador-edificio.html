@@ -1,0 +1,1401 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Simulador Matemático — Edificio 3D</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap');
+
+  :root {
+    --bg: #0a0c10;
+    --panel: #111520;
+    --panel2: #161c2a;
+    --border: #1e2d4a;
+    --accent: #00e5ff;
+    --accent2: #ff6b35;
+    --accent3: #a855f7;
+    --accent4: #22c55e;
+    --text: #e2eaff;
+    --muted: #5a6a8a;
+    --glow: 0 0 20px rgba(0,229,255,0.25);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* GRID BG */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image:
+      linear-gradient(rgba(0,229,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,229,255,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  header {
+    position: relative; z-index: 2;
+    padding: 24px 40px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 16px;
+    background: rgba(10,12,16,0.8);
+    backdrop-filter: blur(10px);
+  }
+
+  .logo-icon {
+    width: 40px; height: 40px;
+    background: linear-gradient(135deg, var(--accent), var(--accent3));
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px; flex-shrink: 0;
+  }
+
+  header h1 {
+    font-size: 1.4rem; font-weight: 800; letter-spacing: -0.02em;
+    background: linear-gradient(90deg, var(--accent), var(--accent3));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+
+  header p { font-family: 'Space Mono', monospace; font-size: 0.7rem; color: var(--muted); margin-top: 2px; }
+
+  .badge {
+    margin-left: auto;
+    background: rgba(0,229,255,0.1);
+    border: 1px solid rgba(0,229,255,0.3);
+    color: var(--accent);
+    padding: 4px 12px; border-radius: 20px;
+    font-family: 'Space Mono', monospace; font-size: 0.65rem;
+    letter-spacing: 0.1em; text-transform: uppercase;
+  }
+
+  .main-layout {
+    position: relative; z-index: 1;
+    display: grid;
+    grid-template-columns: 340px 1fr 320px;
+    grid-template-rows: auto 1fr;
+    gap: 0;
+    height: calc(100vh - 81px);
+  }
+
+  /* ---- TABS ---- */
+  .tabs {
+    grid-column: 1 / -1;
+    display: flex; gap: 0;
+    border-bottom: 1px solid var(--border);
+    background: var(--panel);
+    padding: 0 40px;
+  }
+
+  .tab {
+    padding: 14px 24px;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.72rem; letter-spacing: 0.05em; text-transform: uppercase;
+    color: var(--muted); cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s; white-space: nowrap;
+    display: flex; align-items: center; gap: 8px;
+  }
+
+  .tab:hover { color: var(--text); }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .tab .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+  /* ---- PANELS ---- */
+  .left-panel, .right-panel {
+    background: var(--panel);
+    border-right: 1px solid var(--border);
+    overflow-y: auto;
+    padding: 24px;
+  }
+
+  .right-panel { border-right: none; border-left: 1px solid var(--border); }
+
+  .center-panel {
+    background: var(--bg);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    padding: 24px;
+    position: relative; overflow: hidden;
+  }
+
+  /* ---- INPUT GROUPS ---- */
+  .section-title {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.65rem; letter-spacing: 0.15em; text-transform: uppercase;
+    color: var(--accent); margin-bottom: 16px;
+    display: flex; align-items: center; gap: 8px;
+  }
+
+  .section-title::after {
+    content: ''; flex: 1; height: 1px; background: var(--border);
+  }
+
+  .input-group { margin-bottom: 16px; }
+
+  .input-group label {
+    display: block; margin-bottom: 6px;
+    font-size: 0.78rem; color: var(--muted);
+    font-family: 'Space Mono', monospace;
+  }
+
+  .input-group label span {
+    color: var(--accent2); font-size: 0.65rem; margin-left: 4px;
+  }
+
+  .input-row { display: flex; gap: 10px; }
+  .input-row .input-group { flex: 1; }
+
+  input[type="range"] {
+    width: 100%; -webkit-appearance: none; appearance: none;
+    height: 4px; border-radius: 2px;
+    background: var(--border); outline: none; cursor: pointer;
+  }
+
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 16px; height: 16px;
+    border-radius: 50%; background: var(--accent);
+    box-shadow: 0 0 8px rgba(0,229,255,0.5); cursor: pointer;
+  }
+
+  .range-val {
+    display: flex; justify-content: space-between; margin-top: 4px;
+    font-family: 'Space Mono', monospace; font-size: 0.65rem; color: var(--muted);
+  }
+
+  .range-val strong { color: var(--accent); font-size: 0.8rem; }
+
+  input[type="number"] {
+    width: 100%; padding: 8px 12px;
+    background: var(--panel2); border: 1px solid var(--border);
+    border-radius: 6px; color: var(--text);
+    font-family: 'Space Mono', monospace; font-size: 0.8rem;
+    outline: none; transition: border-color 0.2s;
+  }
+
+  input[type="number"]:focus { border-color: var(--accent); }
+
+  /* ---- BUILDING SVG ---- */
+  #building-container {
+    position: relative;
+    display: flex; align-items: center; justify-content: center;
+    width: 100%; flex: 1;
+  }
+
+  #building-svg { filter: drop-shadow(0 0 30px rgba(0,229,255,0.15)); }
+
+  .dim-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px; fill: var(--accent2);
+  }
+
+  .dim-line { stroke: var(--accent2); stroke-width: 1; opacity: 0.7; }
+
+  /* ---- RESULT CARDS ---- */
+  .result-card {
+    background: var(--panel2);
+    border: 1px solid var(--border);
+    border-radius: 10px; padding: 14px 16px;
+    margin-bottom: 12px;
+    transition: border-color 0.3s, transform 0.2s;
+  }
+
+  .result-card:hover { border-color: rgba(0,229,255,0.3); transform: translateX(-2px); }
+
+  .result-card .label {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.6rem; letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--muted); margin-bottom: 6px;
+  }
+
+  .result-card .value {
+    font-size: 1.4rem; font-weight: 800; letter-spacing: -0.02em;
+  }
+
+  .result-card .unit {
+    font-size: 0.75rem; font-weight: 400; color: var(--muted); margin-left: 4px;
+  }
+
+  .result-card .formula {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.65rem; color: var(--muted);
+    margin-top: 6px; padding-top: 6px;
+    border-top: 1px solid var(--border);
+  }
+
+  .c-accent  { color: var(--accent);  }
+  .c-accent2 { color: var(--accent2); }
+  .c-accent3 { color: var(--accent3); }
+  .c-accent4 { color: var(--accent4); }
+
+  .progress-bar {
+    height: 4px; background: var(--border);
+    border-radius: 2px; margin-top: 8px; overflow: hidden;
+  }
+
+  .progress-fill {
+    height: 100%; border-radius: 2px;
+    background: linear-gradient(90deg, var(--accent), var(--accent3));
+    transition: width 0.5s ease;
+  }
+
+  /* ---- SECTION PAGES ---- */
+  .page { display: none; }
+  .page.active { display: contents; }
+
+  /* ---- FORMULA BOX ---- */
+  .formula-box {
+    background: rgba(0,229,255,0.05);
+    border: 1px solid rgba(0,229,255,0.15);
+    border-radius: 8px; padding: 12px 14px; margin-bottom: 12px;
+  }
+
+  .formula-box .title {
+    font-size: 0.72rem; font-weight: 600; color: var(--accent); margin-bottom: 8px;
+  }
+
+  .formula-box .eq {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.75rem; color: var(--text);
+    line-height: 1.7;
+  }
+
+  /* ANGLE DIAGRAM */
+  #angle-canvas {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--panel2);
+    width: 100%; max-width: 400px;
+  }
+
+  /* ---- SCROLL ---- */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+
+  .summary-grid {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 10px; margin-top: 12px;
+  }
+
+  .mini-card {
+    background: var(--panel2); border: 1px solid var(--border);
+    border-radius: 8px; padding: 12px;
+    text-align: center;
+  }
+
+  .mini-card .m-val { font-size: 1.1rem; font-weight: 800; }
+  .mini-card .m-lbl { font-family: 'Space Mono', monospace; font-size: 0.6rem; color: var(--muted); margin-top: 4px; }
+
+  .separator { height: 1px; background: var(--border); margin: 16px 0; }
+
+  .info-tag {
+    display: inline-block; padding: 2px 8px; border-radius: 4px;
+    font-family: 'Space Mono', monospace; font-size: 0.6rem;
+    background: rgba(168,85,247,0.15); color: var(--accent3);
+    border: 1px solid rgba(168,85,247,0.3); margin-bottom: 10px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo-icon">🏢</div>
+  <div>
+    <h1>MATH — EDIFICIO SIM</h1>
+    <p>Simulador Matemático · Geometría y Medidas Aplicadas</p>
+  </div>
+  <div class="badge">Universidad</div>
+</header>
+
+<div class="main-layout">
+
+  <!-- TABS -->
+  <div class="tabs">
+    <div class="tab active" data-tab="area" onclick="setTab('area')"><span class="dot"></span> Perímetro & Área</div>
+    <div class="tab" data-tab="volumen" onclick="setTab('volumen')"><span class="dot"></span> Volumen & Superficie</div>
+    <div class="tab" data-tab="porcentaje" onclick="setTab('porcentaje')"><span class="dot"></span> Porcentajes & Proporciones</div>
+    <div class="tab" data-tab="angulos" onclick="setTab('angulos')"><span class="dot"></span> Geometría & Ángulos</div>
+  </div>
+
+  <!-- ===== TAB: ÁREA ===== -->
+  <div id="tab-area" class="page active">
+
+    <div class="left-panel">
+      <div class="section-title">Dimensiones del Edificio</div>
+
+      <div class="input-group">
+        <label>Ancho (base) <span>metros</span></label>
+        <input type="range" id="ancho" min="5" max="80" value="20" oninput="update()">
+        <div class="range-val"><span>5m</span><strong id="ancho-val">20</strong><span>80m</span></div>
+      </div>
+
+      <div class="input-group">
+        <label>Largo (profundidad) <span>metros</span></label>
+        <input type="range" id="largo" min="5" max="80" value="30" oninput="update()">
+        <div class="range-val"><span>5m</span><strong id="largo-val">30</strong><span>80m</span></div>
+      </div>
+
+      <div class="input-group">
+        <label>Altura <span>metros</span></label>
+        <input type="range" id="altura" min="5" max="200" value="60" oninput="update()">
+        <div class="range-val"><span>5m</span><strong id="altura-val">60</strong><span>200m</span></div>
+      </div>
+
+      <div class="input-group">
+        <label>Nº de Pisos</label>
+        <input type="range" id="pisos" min="1" max="60" value="15" oninput="update()">
+        <div class="range-val"><span>1</span><strong id="pisos-val">15</strong><span>60</span></div>
+      </div>
+
+      <div class="separator"></div>
+      <div class="section-title">Configuración de Ventanas</div>
+
+      <div class="input-row">
+        <div class="input-group">
+          <label>Ancho ventana <span>m</span></label>
+          <input type="number" id="v-ancho" value="1.2" step="0.1" min="0.5" max="5" oninput="update()">
+        </div>
+        <div class="input-group">
+          <label>Alto ventana <span>m</span></label>
+          <input type="number" id="v-alto" value="1.5" step="0.1" min="0.5" max="5" oninput="update()">
+        </div>
+      </div>
+
+      <div class="input-row">
+        <div class="input-group">
+          <label>Cols/fachada</label>
+          <input type="number" id="v-cols" value="4" min="1" max="20" oninput="update()">
+        </div>
+        <div class="input-group">
+          <label>Filas/piso</label>
+          <input type="number" id="v-filas" value="1" min="1" max="4" oninput="update()">
+        </div>
+      </div>
+
+      <div class="formula-box" style="margin-top:16px">
+        <div class="title">📐 Fórmulas aplicadas</div>
+        <div class="eq">
+          P = 2(a + l)<br>
+          A_base = a × l<br>
+          A_fachada = a × h<br>
+          A_ventana = av × hv<br>
+          A_neta = A_fachada − (N_v × A_ventana)
+        </div>
+      </div>
+    </div>
+
+    <div class="center-panel">
+      <svg id="building-svg" viewBox="0 0 420 480" width="380" height="430">
+        <!-- Building body -->
+        <defs>
+          <linearGradient id="facadeGrad" x1="0" x2="1" y1="0" y2="0">
+            <stop offset="0%" stop-color="#1a2a4a"/>
+            <stop offset="100%" stop-color="#0d1928"/>
+          </linearGradient>
+          <linearGradient id="sideGrad" x1="0" x2="1" y1="0" y2="0">
+            <stop offset="0%" stop-color="#0d1928"/>
+            <stop offset="100%" stop-color="#060d18"/>
+          </linearGradient>
+          <linearGradient id="topGrad" x1="0" x2="0" y1="0" y2="1">
+            <stop offset="0%" stop-color="#1e3a5a"/>
+            <stop offset="100%" stop-color="#0d2040"/>
+          </linearGradient>
+        </defs>
+
+        <!-- Shadow -->
+        <ellipse cx="195" cy="455" rx="130" ry="14" fill="rgba(0,0,0,0.4)"/>
+
+        <!-- Side face (3D) -->
+        <polygon id="side-face" points="270,50 340,20 340,420 270,450" fill="url(#sideGrad)" stroke="#1e2d4a" stroke-width="1"/>
+
+        <!-- Front face -->
+        <rect id="front-face" x="80" y="50" width="190" height="400" fill="url(#facadeGrad)" stroke="#00e5ff" stroke-width="1.5" rx="1"/>
+
+        <!-- Windows group -->
+        <g id="windows-group"></g>
+
+        <!-- Top face -->
+        <polygon id="top-face" points="80,50 270,50 340,20 150,20" fill="url(#topGrad)" stroke="#00e5ff" stroke-width="1"/>
+
+        <!-- Dimension lines -->
+        <line class="dim-line" x1="60" y1="50" x2="60" y2="450" id="dim-h-line"/>
+        <line class="dim-line" x1="55" y1="50" x2="65" y2="50"/>
+        <line class="dim-line" x1="55" y1="450" x2="65" y2="450"/>
+        <text class="dim-label" x="28" y="255" text-anchor="middle" transform="rotate(-90,28,255)" id="dim-h-text">60m</text>
+
+        <line class="dim-line" x1="80" y1="470" x2="270" y2="470"/>
+        <line class="dim-line" x1="80" y1="465" x2="80" y2="475"/>
+        <line class="dim-line" x1="270" y1="465" x2="270" y2="475"/>
+        <text class="dim-label" x="175" y="486" text-anchor="middle" id="dim-a-text">20m</text>
+
+        <line class="dim-line" x1="270" y1="455" x2="350" y2="425" opacity="0.5"/>
+        <text class="dim-label" x="318" y="448" id="dim-l-text" fill="#ff6b35">30m</text>
+
+        <!-- Accent top line -->
+        <line x1="80" y1="50" x2="270" y2="50" stroke="#00e5ff" stroke-width="2" opacity="0.6"/>
+        <line x1="80" y1="50" x2="150" y2="20" stroke="#00e5ff" stroke-width="1" opacity="0.4"/>
+        <line x1="150" y1="20" x2="340" y2="20" stroke="#00e5ff" stroke-width="1" opacity="0.3"/>
+
+        <!-- Floor lines -->
+        <g id="floor-lines" opacity="0.3"></g>
+      </svg>
+      <div style="font-family:'Space Mono',monospace;font-size:0.65rem;color:var(--muted);text-align:center;margin-top:-10px">
+        Vista perspectiva isométrica — arrastra los sliders para modificar
+      </div>
+    </div>
+
+    <div class="right-panel">
+      <div class="section-title">Resultados</div>
+
+      <div class="result-card">
+        <div class="label">Perímetro de la base</div>
+        <div class="value c-accent"><span id="res-perimetro">100</span><span class="unit">m</span></div>
+        <div class="formula">P = 2(a + l) = 2(20 + 30)</div>
+      </div>
+
+      <div class="result-card">
+        <div class="label">Área de la base</div>
+        <div class="value c-accent2"><span id="res-area-base">600</span><span class="unit">m²</span></div>
+        <div class="formula">A = a × l = 20 × 30</div>
+      </div>
+
+      <div class="result-card">
+        <div class="label">Área fachada frontal bruta</div>
+        <div class="value c-accent3"><span id="res-fachada">1200</span><span class="unit">m²</span></div>
+        <div class="formula">A_f = ancho × altura</div>
+      </div>
+
+      <div class="result-card">
+        <div class="label">Área total de ventanas</div>
+        <div class="value" style="color:#facc15"><span id="res-ventanas">108</span><span class="unit">m²</span></div>
+        <div class="formula">A_v × N_ventanas</div>
+      </div>
+
+      <div class="result-card">
+        <div class="label">Área neta de fachada</div>
+        <div class="value c-accent4"><span id="res-neta">1092</span><span class="unit">m²</span></div>
+        <div class="formula">A_fachada − A_ventanas</div>
+        <div class="progress-bar">
+          <div class="progress-fill" id="pct-neta" style="width:91%"></div>
+        </div>
+      </div>
+
+      <div class="separator"></div>
+      <div class="section-title">Totales</div>
+
+      <div class="summary-grid">
+        <div class="mini-card">
+          <div class="m-val c-accent" id="sum-pisos">15</div>
+          <div class="m-lbl">Pisos</div>
+        </div>
+        <div class="mini-card">
+          <div class="m-val c-accent2" id="sum-ventanas">60</div>
+          <div class="m-lbl">Ventanas</div>
+        </div>
+        <div class="mini-card">
+          <div class="m-val c-accent3" id="sum-altura-piso">4.00</div>
+          <div class="m-lbl">m/piso</div>
+        </div>
+        <div class="mini-card">
+          <div class="m-val c-accent4" id="sum-area-total">2400</div>
+          <div class="m-lbl">m² perímetro lateral</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== TAB: VOLUMEN ===== -->
+  <div id="tab-volumen" class="page">
+    <div class="left-panel">
+      <div class="section-title">Parámetros de Volumen</div>
+      <div class="info-tag">Usa los sliders del tab Área</div>
+
+      <div class="input-group">
+        <label>Espesor de muros <span>m</span></label>
+        <input type="range" id="muro" min="0.1" max="1.5" value="0.3" step="0.05" oninput="updateVol()">
+        <div class="range-val"><span>0.1</span><strong id="muro-val">0.3</strong><span>1.5m</span></div>
+      </div>
+
+      <div class="input-group">
+        <label>Losa (espesor entre pisos) <span>m</span></label>
+        <input type="range" id="losa" min="0.1" max="0.6" value="0.25" step="0.05" oninput="updateVol()">
+        <div class="range-val"><span>0.1</span><strong id="losa-val">0.25</strong><span>0.6m</span></div>
+      </div>
+
+      <div class="input-group">
+        <label>% Área de circulación interna</label>
+        <input type="range" id="circulacion" min="5" max="40" value="15" oninput="updateVol()">
+        <div class="range-val"><span>5%</span><strong id="circ-val">15</strong><span>40%</span></div>
+      </div>
+
+      <div class="separator"></div>
+
+      <div class="formula-box">
+        <div class="title">📦 Fórmulas de Volumen</div>
+        <div class="eq">
+          V_total = A_base × H<br>
+          V_muros = (2(a+l)×e - 4e²) × H<br>
+          V_losas = A_base × e_losa × pisos<br>
+          V_neto = V_total − V_muros − V_losas<br>
+          S_total = 2A_base + A_lateral_total
+        </div>
+      </div>
+
+      <div class="formula-box" style="border-color:rgba(168,85,247,0.3);background:rgba(168,85,247,0.05)">
+        <div class="title" style="color:var(--accent3)">📊 Área útil por piso</div>
+        <div class="eq">
+          A_útil = A_base × (1 − %circulación)<br>
+          A_útil_total = A_útil × pisos
+        </div>
+      </div>
+    </div>
+
+    <div class="center-panel">
+      <canvas id="vol-canvas" width="380" height="380" style="border:1px solid var(--border);border-radius:12px;background:var(--panel2)"></canvas>
+      <div style="font-family:'Space Mono',monospace;font-size:0.65rem;color:var(--muted);text-align:center;margin-top:10px">
+        Desglose volumétrico del edificio
+      </div>
+    </div>
+
+    <div class="right-panel">
+      <div class="section-title">Resultados de Volumen</div>
+
+      <div class="result-card">
+        <div class="label">Volumen total bruto</div>
+        <div class="value c-accent"><span id="vol-total">36000</span><span class="unit">m³</span></div>
+        <div class="formula">V = A_base × H</div>
+      </div>
+
+      <div class="result-card">
+        <div class="label">Volumen de muros</div>
+        <div class="value c-accent2"><span id="vol-muros">1800</span><span class="unit">m³</span></div>
+        <div class="formula">Perímetro × espesor × H</div>
+      </div>
+
+      <div class="result-card">
+        <div class="label">Volumen de losas</div>
+        <div class="value c-accent3"><span id="vol-losas">2250</span><span class="unit">m³</span></div>
+        <div class="formula">A_base × e_losa × pisos</div>
+      </div>
+
+      <div class="result-card">
+        <div class="label">Volumen neto habitable</div>
+        <div class="value c-accent4"><span id="vol-neto">31950</span><span class="unit">m³</span></div>
+        <div class="progress-bar">
+          <div class="progress-fill" id="pct-vol" style="background:linear-gradient(90deg,var(--accent4),#86efac);width:88%"></div>
+        </div>
+      </div>
+
+      <div class="separator"></div>
+
+      <div class="result-card">
+        <div class="label">Superficie total (6 caras)</div>
+        <div class="value" style="color:#facc15"><span id="sup-total">8400</span><span class="unit">m²</span></div>
+        <div class="formula">2A_base + 2(a+l)×H</div>
+      </div>
+
+      <div class="result-card">
+        <div class="label">Área útil por piso</div>
+        <div class="value c-accent3"><span id="area-util-piso">510</span><span class="unit">m²</span></div>
+        <div class="formula">A_base × (1 − circ%)</div>
+      </div>
+
+      <div class="result-card">
+        <div class="label">Área útil TOTAL</div>
+        <div class="value c-accent"><span id="area-util-total">7650</span><span class="unit">m²</span></div>
+        <div class="formula">A_útil × pisos</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== TAB: PORCENTAJES ===== -->
+  <div id="tab-porcentaje" class="page">
+    <div class="left-panel">
+      <div class="section-title">Costos & Materiales</div>
+
+      <div class="input-group">
+        <label>Costo por m² construido <span>USD</span></label>
+        <input type="number" id="costo-m2" value="1200" min="100" oninput="updatePct()">
+      </div>
+
+      <div class="input-group">
+        <label>% Mano de obra</label>
+        <input type="range" id="pct-mo" min="10" max="50" value="35" oninput="updatePct()">
+        <div class="range-val"><span>10%</span><strong id="mo-val">35</strong><span>50%</span></div>
+      </div>
+
+      <div class="input-group">
+        <label>% Materiales</label>
+        <input type="range" id="pct-mat" min="20" max="70" value="45" oninput="updatePct()">
+        <div class="range-val"><span>20%</span><strong id="mat-val">45</strong><span>70%</span></div>
+      </div>
+
+      <div class="input-group">
+        <label>% Imprevistos y admin</label>
+        <input type="range" id="pct-imp" min="5" max="20" value="10" oninput="updatePct()">
+        <div class="range-val"><span>5%</span><strong id="imp-val">10</strong><span>20%</span></div>
+      </div>
+
+      <div id="pct-warning" style="display:none;background:rgba(255,107,53,0.1);border:1px solid rgba(255,107,53,0.4);border-radius:6px;padding:10px;font-size:0.75rem;color:var(--accent2);margin-top:8px">
+        ⚠️ Los porcentajes superan 100%. Ajusta los valores.
+      </div>
+
+      <div class="separator"></div>
+
+      <div class="input-group">
+        <label>Precio de venta por m² <span>USD</span></label>
+        <input type="number" id="precio-venta" value="2200" min="100" oninput="updatePct()">
+      </div>
+
+      <div class="formula-box">
+        <div class="title">📈 Fórmulas financieras</div>
+        <div class="eq">
+          C_total = costo_m² × A_útil_total<br>
+          G_x = C_total × (pct_x / 100)<br>
+          Ingreso = precio × A_útil_total<br>
+          Ganancia = Ingreso − C_total<br>
+          ROI = (Ganancia / C_total) × 100%<br>
+          Prop = A_útil / A_total_bruta
+        </div>
+      </div>
+    </div>
+
+    <div class="center-panel">
+      <canvas id="pct-canvas" width="340" height="340" style="border-radius:50%;max-width:300px;max-height:300px"></canvas>
+      <div id="pct-legend" style="margin-top:20px;display:flex;flex-wrap:wrap;gap:10px;justify-content:center;max-width:380px"></div>
+    </div>
+
+    <div class="right-panel">
+      <div class="section-title">Análisis Financiero</div>
+
+      <div class="result-card">
+        <div class="label">Costo total de construcción</div>
+        <div class="value c-accent2">$ <span id="pct-costo">9M</span></div>
+        <div class="formula">costo_m² × área_útil_total</div>
+      </div>
+
+      <div class="result-card">
+        <div class="label">Mano de obra</div>
+        <div class="value c-accent"><span id="pct-mo-v">3.15M</span><span class="unit">USD</span></div>
+        <div class="formula" id="pct-mo-f">35% del costo total</div>
+        <div class="progress-bar"><div class="progress-fill" id="bar-mo" style="width:35%"></div></div>
+      </div>
+
+      <div class="result-card">
+        <div class="label">Materiales</div>
+        <div class="value c-accent3"><span id="pct-mat-v">4.05M</span><span class="unit">USD</span></div>
+        <div class="formula" id="pct-mat-f">45% del costo total</div>
+        <div class="progress-bar"><div class="progress-fill" id="bar-mat" style="background:linear-gradient(90deg,var(--accent3),#c084fc);width:45%"></div></div>
+      </div>
+
+      <div class="result-card">
+        <div class="label">Imprevistos / Admin</div>
+        <div class="value" style="color:#facc15"><span id="pct-imp-v">0.9M</span><span class="unit">USD</span></div>
+        <div class="formula" id="pct-imp-f">10% del costo total</div>
+        <div class="progress-bar"><div class="progress-fill" id="bar-imp" style="background:linear-gradient(90deg,#facc15,#fde68a);width:10%"></div></div>
+      </div>
+
+      <div class="separator"></div>
+
+      <div class="result-card">
+        <div class="label">Ingresos por ventas</div>
+        <div class="value c-accent4">$ <span id="pct-ingreso">16.8M</span></div>
+        <div class="formula">precio_m² × área_útil_total</div>
+      </div>
+
+      <div class="result-card">
+        <div class="label">Ganancia neta / ROI</div>
+        <div class="value c-accent4">$ <span id="pct-ganancia">7.8M</span> <span class="unit" style="font-size:1rem;color:var(--accent4)" id="pct-roi">(86.7%)</span></div>
+        <div class="formula">ROI = (Ganancia / Costo) × 100</div>
+      </div>
+
+      <div class="result-card">
+        <div class="label">Proporción útil / total</div>
+        <div class="value c-accent"><span id="pct-prop">85</span><span class="unit">%</span></div>
+        <div class="formula">A_útil / A_construida_total</div>
+        <div class="progress-bar"><div class="progress-fill" id="bar-prop" style="width:85%"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== TAB: ÁNGULOS ===== -->
+  <div id="tab-angulos" class="page">
+    <div class="left-panel">
+      <div class="section-title">Geometría del Edificio</div>
+
+      <div class="input-group">
+        <label>Ángulo de inclinación fachada <span>°</span></label>
+        <input type="range" id="ang-fachada" min="80" max="100" value="90" oninput="updateAng()">
+        <div class="range-val"><span>80°</span><strong id="ang-f-val">90</strong><span>100°</span></div>
+      </div>
+
+      <div class="input-group">
+        <label>Ángulo de techo / cubierta <span>°</span></label>
+        <input type="range" id="ang-techo" min="0" max="60" value="15" oninput="updateAng()">
+        <div class="range-val"><span>0°</span><strong id="ang-t-val">15</strong><span>60°</span></div>
+      </div>
+
+      <div class="input-group">
+        <label>Distancia al edificio de observación <span>m</span></label>
+        <input type="range" id="dist-obs" min="10" max="200" value="60" oninput="updateAng()">
+        <div class="range-val"><span>10</span><strong id="dist-val">60</strong><span>200m</span></div>
+      </div>
+
+      <div class="separator"></div>
+      <div class="section-title">Formas en la planta</div>
+
+      <div class="input-group">
+        <label>Número de lados de la planta</label>
+        <input type="range" id="num-lados" min="3" max="8" value="4" oninput="updateAng()">
+        <div class="range-val"><span>3</span><strong id="lados-val">4</strong><span>8</span></div>
+      </div>
+
+      <div class="formula-box" style="margin-top:12px">
+        <div class="title">📐 Trigonometría aplicada</div>
+        <div class="eq">
+          tan(α) = H / d_obs  →  α = arctan(H/d)<br>
+          Suma ángulos int = (n−2)×180°<br>
+          Ángulo int regular = (n−2)×180° / n<br>
+          Ángulo ext regular = 360° / n<br>
+          Hipotenusa = √(H² + d²)
+        </div>
+      </div>
+    </div>
+
+    <div class="center-panel">
+      <canvas id="angle-canvas" width="380" height="360"></canvas>
+      <div style="font-family:'Space Mono',monospace;font-size:0.65rem;color:var(--muted);text-align:center;margin-top:8px">
+        Diagrama de ángulos y trigonometría
+      </div>
+    </div>
+
+    <div class="right-panel">
+      <div class="section-title">Resultados Geométricos</div>
+
+      <div class="result-card">
+        <div class="label">Ángulo de elevación (observador)</div>
+        <div class="value c-accent"><span id="ang-elevacion">45.0</span><span class="unit">°</span></div>
+        <div class="formula">α = arctan(H / d_obs)</div>
+      </div>
+
+      <div class="result-card">
+        <div class="label">Hipotenusa visual (dist. real)</div>
+        <div class="value c-accent2"><span id="hip-val">84.9</span><span class="unit">m</span></div>
+        <div class="formula">c = √(H² + d²)</div>
+      </div>
+
+      <div class="result-card">
+        <div class="label">Suma ángulos interiores</div>
+        <div class="value c-accent3"><span id="suma-ang">360</span><span class="unit">°</span></div>
+        <div class="formula">(n − 2) × 180°</div>
+      </div>
+
+      <div class="result-card">
+        <div class="label">Ángulo interior (polígono regular)</div>
+        <div class="value" style="color:#facc15"><span id="ang-int">90.0</span><span class="unit">°</span></div>
+        <div class="formula">Suma / n lados</div>
+      </div>
+
+      <div class="result-card">
+        <div class="label">Ángulo exterior</div>
+        <div class="value c-accent4"><span id="ang-ext">90.0</span><span class="unit">°</span></div>
+        <div class="formula">360° / n lados</div>
+      </div>
+
+      <div class="separator"></div>
+
+      <div class="result-card">
+        <div class="label">Proyección horizontal sombra</div>
+        <div class="value c-accent"><span id="sombra-val">224.0</span><span class="unit">m</span></div>
+        <div class="formula">d_sombra = H / tan(ángulo solar=15°)</div>
+      </div>
+
+      <div class="result-card">
+        <div class="label">Ángulo de inclinación fachada</div>
+        <div class="value c-accent2"><span id="ang-fachada-res">90</span><span class="unit">°</span> <span class="unit" id="fachada-tipo">(vertical)</span></div>
+        <div class="formula">ángulo fachada − 90° = desviación</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+let currentTab = 'area';
+
+function setTab(tab) {
+  currentTab = tab;
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('tab-' + tab).classList.add('active');
+  if (tab === 'volumen') { updateVol(); drawVolCanvas(); }
+  if (tab === 'porcentaje') { updatePct(); drawPieChart(); }
+  if (tab === 'angulos') { updateAng(); drawAngleCanvas(); }
+}
+
+function getVals() {
+  return {
+    a: parseFloat(document.getElementById('ancho').value),
+    l: parseFloat(document.getElementById('largo').value),
+    h: parseFloat(document.getElementById('altura').value),
+    p: parseInt(document.getElementById('pisos').value),
+    va: parseFloat(document.getElementById('v-ancho').value) || 1.2,
+    vh: parseFloat(document.getElementById('v-alto').value) || 1.5,
+    vc: parseInt(document.getElementById('v-cols').value) || 4,
+    vf: parseInt(document.getElementById('v-filas').value) || 1,
+  };
+}
+
+function fmt(n) {
+  if (n >= 1e9) return (n/1e9).toFixed(2) + 'B';
+  if (n >= 1e6) return (n/1e6).toFixed(2) + 'M';
+  if (n >= 1e3) return (n/1e3).toFixed(1) + 'K';
+  return n.toFixed(2);
+}
+
+function update() {
+  const {a, l, h, p, va, vh, vc, vf} = getVals();
+  document.getElementById('ancho-val').textContent = a;
+  document.getElementById('largo-val').textContent = l;
+  document.getElementById('altura-val').textContent = h;
+  document.getElementById('pisos-val').textContent = p;
+
+  const perimetro = 2 * (a + l);
+  const areaBase = a * l;
+  const areaFachada = a * h;
+  const nVentanas = vc * vf * p;
+  const areaVentana = va * vh;
+  const areaVentanasTotal = nVentanas * areaVentana;
+  const areaNeta = areaFachada - areaVentanasTotal;
+  const perimLateral = perimetro * h;
+  const hPiso = h / p;
+
+  document.getElementById('res-perimetro').textContent = perimetro.toFixed(1);
+  document.getElementById('res-area-base').textContent = areaBase.toFixed(1);
+  document.getElementById('res-fachada').textContent = areaFachada.toFixed(1);
+  document.getElementById('res-ventanas').textContent = areaVentanasTotal.toFixed(1);
+  document.getElementById('res-neta').textContent = areaNeta.toFixed(1);
+  document.getElementById('sum-pisos').textContent = p;
+  document.getElementById('sum-ventanas').textContent = nVentanas;
+  document.getElementById('sum-altura-piso').textContent = hPiso.toFixed(2);
+  document.getElementById('sum-area-total').textContent = perimLateral.toFixed(0);
+
+  const pctNeta = Math.max(0, (areaNeta / areaFachada * 100));
+  document.getElementById('pct-neta').style.width = pctNeta + '%';
+
+  drawBuilding(a, l, h, p, vc, vf);
+
+  if (currentTab === 'volumen') updateVol();
+  if (currentTab === 'porcentaje') updatePct();
+  if (currentTab === 'angulos') updateAng();
+}
+
+function drawBuilding(a, l, h, p, vc, vf) {
+  const svg = document.getElementById('building-svg');
+  const FW = 190, FH = 400, FX = 80, FY = 50;
+  const SW = 70;
+
+  // Scale
+  const scaleW = Math.max(0.5, Math.min(1.5, a / 20));
+  const scaleH = Math.max(0.5, Math.min(1.5, h / 60));
+  const scaleD = Math.max(0.5, Math.min(1.5, l / 30));
+
+  const fw = Math.round(FW * scaleW);
+  const fh = Math.round(FH * scaleH);
+  const sw = Math.round(SW * scaleD);
+  const fy = 450 - fh;
+  const fx = 80 + Math.round((FW - fw) / 2);
+
+  document.getElementById('front-face').setAttribute('x', fx);
+  document.getElementById('front-face').setAttribute('y', fy);
+  document.getElementById('front-face').setAttribute('width', fw);
+  document.getElementById('front-face').setAttribute('height', fh);
+
+  const topY = fy - 28;
+  document.getElementById('side-face').setAttribute('points',
+    `${fx+fw},${fy} ${fx+fw+sw},${topY} ${fx+fw+sw},${450} ${fx+fw},${450}`);
+  document.getElementById('top-face').setAttribute('points',
+    `${fx},${fy} ${fx+fw},${fy} ${fx+fw+sw},${topY} ${fx+sw},${topY}`);
+
+  // Dim lines
+  document.getElementById('dim-h-line').setAttribute('x1', fx-20);
+  document.getElementById('dim-h-line').setAttribute('x2', fx-20);
+  document.getElementById('dim-h-line').setAttribute('y1', fy);
+  document.getElementById('dim-h-line').setAttribute('y2', 450);
+  document.getElementById('dim-h-text').textContent = h + 'm';
+  document.getElementById('dim-h-text').setAttribute('transform', `rotate(-90,${fx-42},${fy + fh/2})`);
+  document.getElementById('dim-h-text').setAttribute('x', fx-42);
+  document.getElementById('dim-h-text').setAttribute('y', fy + fh/2);
+
+  document.getElementById('dim-a-text').setAttribute('x', fx + fw/2);
+  document.getElementById('dim-a-text').textContent = a + 'm';
+
+  // Floor lines
+  const floorGroup = document.getElementById('floor-lines');
+  floorGroup.innerHTML = '';
+  const floorH = fh / p;
+  for (let i = 1; i < p; i++) {
+    const y = fy + i * floorH;
+    const line = document.createElementNS('http://www.w3.org/2000/svg','line');
+    line.setAttribute('x1', fx); line.setAttribute('x2', fx+fw);
+    line.setAttribute('y1', y); line.setAttribute('y2', y);
+    line.setAttribute('stroke', '#00e5ff'); line.setAttribute('stroke-width', '0.5');
+    floorGroup.appendChild(line);
+  }
+
+  // Windows
+  const winGroup = document.getElementById('windows-group');
+  winGroup.innerHTML = '';
+  const colSpacing = fw / (vc + 1);
+  const rowSpacing = floorH / (vf + 1);
+  const ww = Math.min(colSpacing * 0.55, 18);
+  const wh = Math.min(rowSpacing * 0.55, 14);
+
+  for (let floor = 0; floor < p; floor++) {
+    for (let col = 0; col < vc; col++) {
+      for (let row = 0; row < vf; row++) {
+        const wx = fx + (col + 1) * colSpacing - ww/2;
+        const wy = fy + floor * floorH + (row + 1) * rowSpacing - wh/2;
+        const rect = document.createElementNS('http://www.w3.org/2000/svg','rect');
+        rect.setAttribute('x', wx); rect.setAttribute('y', wy);
+        rect.setAttribute('width', ww); rect.setAttribute('height', wh);
+        rect.setAttribute('fill', 'rgba(0,229,255,0.25)');
+        rect.setAttribute('stroke', '#00e5ff'); rect.setAttribute('stroke-width', '0.8');
+        rect.setAttribute('rx', '1');
+        winGroup.appendChild(rect);
+      }
+    }
+  }
+}
+
+// ---- VOLUMEN ----
+function updateVol() {
+  const {a, l, h, p} = getVals();
+  const e = parseFloat(document.getElementById('muro').value);
+  const eLosa = parseFloat(document.getElementById('losa').value);
+  const circ = parseFloat(document.getElementById('circulacion').value) / 100;
+
+  document.getElementById('muro-val').textContent = e;
+  document.getElementById('losa-val').textContent = eLosa;
+  document.getElementById('circ-val').textContent = document.getElementById('circulacion').value;
+
+  const vTotal = a * l * h;
+  const perim = 2 * (a + l);
+  const vMuros = (perim * e - 4 * e * e) * h;
+  const vLosas = a * l * eLosa * p;
+  const vNeto = vTotal - vMuros - vLosas;
+  const sTotal = 2 * a * l + perim * h;
+  const aUtil = a * l * (1 - circ);
+  const aUtilTotal = aUtil * p;
+
+  document.getElementById('vol-total').textContent = fmt(vTotal);
+  document.getElementById('vol-muros').textContent = fmt(vMuros);
+  document.getElementById('vol-losas').textContent = fmt(vLosas);
+  document.getElementById('vol-neto').textContent = fmt(vNeto);
+  document.getElementById('sup-total').textContent = fmt(sTotal);
+  document.getElementById('area-util-piso').textContent = fmt(aUtil);
+  document.getElementById('area-util-total').textContent = fmt(aUtilTotal);
+
+  document.getElementById('pct-vol').style.width = (vNeto/vTotal*100).toFixed(1) + '%';
+  drawVolCanvas();
+}
+
+function drawVolCanvas() {
+  const canvas = document.getElementById('vol-canvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0, 0, W, H);
+
+  const {a, l, h, p} = getVals();
+  const e = parseFloat(document.getElementById('muro').value);
+  const eLosa = parseFloat(document.getElementById('losa').value);
+  const circ = parseFloat(document.getElementById('circulacion').value) / 100;
+
+  const vTotal = a * l * h;
+  const perim = 2 * (a + l);
+  const vMuros = (perim * e - 4 * e * e) * h;
+  const vLosas = a * l * eLosa * p;
+  const vNeto = vTotal - vMuros - vLosas;
+  const vCirc = vNeto * circ;
+  const vUtil = vNeto - vCirc;
+
+  const segments = [
+    { label: 'Vol. Útil', value: vUtil, color: '#22c55e' },
+    { label: 'Circulación', value: vCirc, color: '#a855f7' },
+    { label: 'Losas', value: vLosas, color: '#ff6b35' },
+    { label: 'Muros', value: vMuros, color: '#00e5ff' },
+  ];
+
+  const barX = 60, barY = 40, barW = 260, barH = 36;
+  const gap = 12;
+  let y = barY;
+
+  ctx.font = '600 12px Syne, sans-serif';
+  ctx.fillStyle = '#5a6a8a';
+  ctx.fillText('DESGLOSE VOLUMÉTRICO', barX, y - 12);
+
+  segments.forEach((s, i) => {
+    const pct = s.value / vTotal;
+    const w = pct * barW;
+
+    // BG bar
+    ctx.fillStyle = '#161c2a';
+    ctx.beginPath(); ctx.roundRect(barX, y, barW, barH, 4); ctx.fill();
+
+    // Fill
+    const grad = ctx.createLinearGradient(barX, 0, barX + w, 0);
+    grad.addColorStop(0, s.color); grad.addColorStop(1, s.color + '88');
+    ctx.fillStyle = grad;
+    ctx.beginPath(); ctx.roundRect(barX, y, Math.max(w, 4), barH, 4); ctx.fill();
+
+    // Label
+    ctx.fillStyle = '#e2eaff';
+    ctx.font = 'bold 11px Space Mono, monospace';
+    ctx.fillText(s.label, barX + 8, y + barH/2 + 4);
+
+    // Value
+    ctx.fillStyle = s.color;
+    ctx.textAlign = 'right';
+    ctx.fillText(fmt(s.value) + ' m³ (' + (pct*100).toFixed(1) + '%)', barX + barW - 8, y + barH/2 + 4);
+    ctx.textAlign = 'left';
+
+    y += barH + gap;
+  });
+
+  // Stacked bar total
+  y += 10;
+  ctx.fillStyle = '#1e2d4a';
+  ctx.beginPath(); ctx.roundRect(barX, y, barW, 30, 6); ctx.fill();
+
+  let xx = barX;
+  segments.forEach(s => {
+    const w = (s.value / vTotal) * barW;
+    ctx.fillStyle = s.color;
+    ctx.fillRect(xx, y, w, 30);
+    xx += w;
+  });
+  ctx.strokeStyle = '#00e5ff';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.roundRect(barX, y, barW, 30, 6); ctx.stroke();
+
+  ctx.fillStyle = '#e2eaff';
+  ctx.font = 'bold 10px Space Mono, monospace';
+  ctx.fillText('TOTAL: ' + fmt(vTotal) + ' m³', barX + 8, y + 19);
+}
+
+// ---- PORCENTAJES ----
+function updatePct() {
+  const {a, l, h, p} = getVals();
+  const e = parseFloat(document.getElementById('muro')?.value || 0.3);
+  const circ = parseFloat(document.getElementById('circulacion')?.value || 15) / 100;
+  const aUtil = a * l * (1 - circ) * p;
+
+  const costoM2 = parseFloat(document.getElementById('costo-m2').value) || 1200;
+  const precioVenta = parseFloat(document.getElementById('precio-venta').value) || 2200;
+  const pctMo = parseFloat(document.getElementById('pct-mo').value);
+  const pctMat = parseFloat(document.getElementById('pct-mat').value);
+  const pctImp = parseFloat(document.getElementById('pct-imp').value);
+
+  document.getElementById('mo-val').textContent = pctMo;
+  document.getElementById('mat-val').textContent = pctMat;
+  document.getElementById('imp-val').textContent = pctImp;
+
+  const total = pctMo + pctMat + pctImp;
+  document.getElementById('pct-warning').style.display = total > 100 ? 'block' : 'none';
+
+  const costoTotal = costoM2 * aUtil;
+  const mo = costoTotal * pctMo / 100;
+  const mat = costoTotal * pctMat / 100;
+  const imp = costoTotal * pctImp / 100;
+  const ingreso = precioVenta * aUtil;
+  const ganancia = ingreso - costoTotal;
+  const roi = (ganancia / costoTotal) * 100;
+  const prop = (1 - circ) * 100;
+
+  document.getElementById('pct-costo').textContent = fmt(costoTotal);
+  document.getElementById('pct-mo-v').textContent = fmt(mo);
+  document.getElementById('pct-mat-v').textContent = fmt(mat);
+  document.getElementById('pct-imp-v').textContent = fmt(imp);
+  document.getElementById('pct-ingreso').textContent = fmt(ingreso);
+  document.getElementById('pct-ganancia').textContent = fmt(ganancia);
+  document.getElementById('pct-roi').textContent = '(' + roi.toFixed(1) + '%)';
+  document.getElementById('pct-prop').textContent = prop.toFixed(1);
+
+  document.getElementById('pct-mo-f').textContent = pctMo + '% del costo total';
+  document.getElementById('pct-mat-f').textContent = pctMat + '% del costo total';
+  document.getElementById('pct-imp-f').textContent = pctImp + '% del costo total';
+
+  document.getElementById('bar-mo').style.width = pctMo + '%';
+  document.getElementById('bar-mat').style.width = pctMat + '%';
+  document.getElementById('bar-imp').style.width = pctImp + '%';
+  document.getElementById('bar-prop').style.width = prop + '%';
+
+  drawPieChart();
+}
+
+function drawPieChart() {
+  const canvas = document.getElementById('pct-canvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0, 0, W, H);
+
+  const pctMo = parseFloat(document.getElementById('pct-mo').value);
+  const pctMat = parseFloat(document.getElementById('pct-mat').value);
+  const pctImp = parseFloat(document.getElementById('pct-imp').value);
+  const pctOther = Math.max(0, 100 - pctMo - pctMat - pctImp);
+
+  const data = [
+    { label: 'Mano de obra', value: pctMo, color: '#00e5ff' },
+    { label: 'Materiales', value: pctMat, color: '#a855f7' },
+    { label: 'Imprevistos', value: pctImp, color: '#facc15' },
+    { label: 'Otros', value: pctOther, color: '#22c55e' },
+  ].filter(d => d.value > 0);
+
+  const cx = W/2, cy = H/2, r = Math.min(W,H)/2 - 20;
+  let startAngle = -Math.PI/2;
+
+  data.forEach(d => {
+    const angle = (d.value / 100) * 2 * Math.PI;
+
+    // Shadow
+    ctx.save();
+    ctx.shadowColor = d.color + '55';
+    ctx.shadowBlur = 20;
+
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.arc(cx, cy, r, startAngle, startAngle + angle);
+    ctx.closePath();
+    ctx.fillStyle = d.color;
+    ctx.fill();
+    ctx.restore();
+
+    // Border
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.arc(cx, cy, r, startAngle, startAngle + angle);
+    ctx.closePath();
+    ctx.strokeStyle = '#0a0c10';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // Percentage label inside
+    const midAngle = startAngle + angle / 2;
+    const lx = cx + Math.cos(midAngle) * r * 0.65;
+    const ly = cy + Math.sin(midAngle) * r * 0.65;
+    ctx.fillStyle = '#0a0c10';
+    ctx.font = 'bold 12px Space Mono, monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(d.value.toFixed(0) + '%', lx, ly + 4);
+
+    startAngle += angle;
+  });
+
+  // Center hole
+  ctx.beginPath();
+  ctx.arc(cx, cy, r * 0.38, 0, 2*Math.PI);
+  ctx.fillStyle = '#0a0c10';
+  ctx.fill();
+  ctx.strokeStyle = '#1e2d4a';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  ctx.fillStyle = '#e2eaff';
+  ctx.font = 'bold 11px Syne, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('COSTOS', cx, cy - 5);
+  ctx.fillStyle = '#5a6a8a';
+  ctx.font = '9px Space Mono, monospace';
+  ctx.fillText('desglose', cx, cy + 10);
+
+  // Legend
+  const legend = document.getElementById('pct-legend');
+  legend.innerHTML = data.map(d => `
+    <div style="display:flex;align-items:center;gap:6px;font-family:'Space Mono',monospace;font-size:0.65rem;color:var(--muted)">
+      <span style="width:10px;height:10px;border-radius:2px;background:${d.color};flex-shrink:0"></span>
+      <span style="color:var(--text)">${d.label}</span> — ${d.value.toFixed(1)}%
+    </div>
+  `).join('');
+}
+
+// ---- ÁNGULOS ----
+function updateAng() {
+  const {a, l, h} = getVals();
+  const angF = parseFloat(document.getElementById('ang-fachada').value);
+  const angT = parseFloat(document.getElementById('ang-techo').value);
+  const dObs = parseFloat(document.getElementById('dist-obs').value);
+  const nLados = parseInt(document.getElementById('num-lados').value);
+
+  document.getElementById('ang-f-val').textContent = angF;
+  document.getElementById('ang-t-val').textContent = angT;
+  document.getElementById('dist-val').textContent = dObs;
+  document.getElementById('lados-val').textContent = nLados;
+
+  const elevacion = Math.atan(h / dObs) * 180 / Math.PI;
+  const hip = Math.sqrt(h*h + dObs*dObs);
+  const sumaAng = (nLados - 2) * 180;
+  const angInt = sumaAng / nLados;
+  const angExt = 360 / nLados;
+  const sombra = h / Math.tan(15 * Math.PI / 180);
+
+  document.getElementById('ang-elevacion').textContent = elevacion.toFixed(2);
+  document.getElementById('hip-val').textContent = hip.toFixed(2);
+  document.getElementById('suma-ang').textContent = sumaAng;
+  document.getElementById('ang-int').textContent = angInt.toFixed(2);
+  document.getElementById('ang-ext').textContent = angExt.toFixed(2);
+  document.getElementById('sombra-val').textContent = sombra.toFixed(1);
+  document.getElementById('ang-fachada-res').textContent = angF;
+  document.getElementById('fachada-tipo').textContent = angF === 90 ? '(vertical)' : angF < 90 ? '(inclinada ←)' : '(inclinada →)';
+
+  drawAngleCanvas();
+}
+
+function drawAngleCanvas() {
+  const canvas = document.getElementById('angle-canvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0, 0, W, H);
+
+  const {h, a} = getVals();
+  const dObs = parseFloat(document.getElementById('dist-obs').value);
+  const nLados = parseInt(document.getElementById('num-lados').value);
+
+  const pad = 40;
+  const maxDim = Math.max(h, dObs);
+  const scale = Math.min((H - pad*2) / maxDim, (W/2 - pad*2) / dObs, 2.5);
+
+  // Draw on left side: elevation triangle
+  const bx = pad + 60;
+  const by = H - pad - 20;
+  const bldH = Math.min(h * scale, H - pad*2 - 40);
+  const obsD = Math.min(dObs * scale, W/2 - pad - 60);
+
+  // Ground
+  ctx.strokeStyle = '#1e2d4a';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([4, 4]);
+  ctx.beginPath(); ctx.moveTo(pad, by); ctx.lineTo(W/2 - 10, by); ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Building
+  ctx.fillStyle = '#1a2a4a';
+  ctx.fillRect(bx - 20, by - bldH, 40, bldH);
+  ctx.strokeStyle = '#00e5ff';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(bx - 20, by - bldH, 40, bldH);
+
+  // Label H
+  ctx.fillStyle = '#00e5ff';
+  ctx.font = 'bold 11px Space Mono, monospace';
+  ctx.textAlign = 'right';
+  ctx.fillText('H=' + h + 'm', bx - 24, by - bldH/2 + 4);
+
+  // Observer
+  const ox = bx + obsD;
+  ctx.fillStyle = '#ff6b35';
+  ctx.beginPath(); ctx.arc(ox, by, 6, 0, 2*Math.PI); ctx.fill();
+  ctx.fillText('obs', ox + 14, by + 4);
+
+  // Hypotenuse
+  ctx.strokeStyle = '#a855f7';
+  ctx.lineWidth = 1.5;
+  ctx.setLineDash([5, 3]);
+  ctx.beginPath(); ctx.moveTo(bx, by - bldH); ctx.lineTo(ox, by); ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Angle arc
+  const elevRad = Math.atan((by - bldH - by + bldH) / obsD + bldH / obsD);
+  const angDeg = Math.atan(h / dObs) * 180 / Math.PI;
+  ctx.strokeStyle = '#facc15';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.arc(ox, by, 30, -Math.PI/2 - elevRad, -Math.PI/2);
+  // simpler:
+  const startA = Math.atan2(-(by - bldH - by), ox - bx) + Math.PI;
+  ctx.beginPath();
+  ctx.arc(ox, by, 28, Math.atan2(-(bldH), -(obsD)), 0);
+  ctx.stroke();
+  ctx.fillStyle = '#facc15';
+  ctx.font = '10px Space Mono, monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('α=' + angDeg.toFixed(1) + '°', ox - 30, by - 15);
+
+  // Distance label
+  ctx.fillStyle = '#ff6b35';
+  ctx.fillText('d=' + dObs + 'm', bx + obsD/2, by + 18);
+
+  // Draw on right: polygon
+  const px = W * 3/4, py = H / 2;
+  const pr = Math.min(H/2 - 30, 80);
+  ctx.fillStyle = 'rgba(0,229,255,0.05)';
+  ctx.strokeStyle = '#00e5ff';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  for (let i = 0; i < nLados; i++) {
+    const angle = (2 * Math.PI * i / nLados) - Math.PI/2;
+    const vx = px + pr * Math.cos(angle);
+    const vy = py + pr * Math.sin(angle);
+    i === 0 ? ctx.moveTo(vx, vy) : ctx.lineTo(vx, vy);
+  }
+  ctx.closePath(); ctx.fill(); ctx.stroke();
+
+  // Angle arc at first vertex
+  if (nLados >= 3) {
+    const a0 = -Math.PI/2, a1 = (2*Math.PI/nLados) - Math.PI/2;
+    const vx = px + pr * Math.cos(a0), vy = py + pr * Math.sin(a0);
+    ctx.strokeStyle = '#facc15';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    const prevA = a0 - 2*Math.PI/nLados;
+    ctx.arc(vx, vy, 16, prevA + Math.PI, a1 + Math.PI);
+    ctx.stroke();
+
+    const angInt = (nLados - 2) * 180 / nLados;
+    ctx.fillStyle = '#facc15';
+    ctx.font = 'bold 10px Space Mono, monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(angInt.toFixed(1) + '°', vx, vy - 22);
+  }
+
+  // Polygon label
+  const names = ['','','','Triángulo','Cuadrado','Pentágono','Hexágono','Heptágono','Octágono'];
+  ctx.fillStyle = '#5a6a8a';
+  ctx.font = '10px Space Mono, monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText(names[nLados] || nLados + '-gono', px, py + pr + 20);
+  ctx.fillStyle = '#a855f7';
+  ctx.fillText('Planta del edificio', px, H - 10);
+
+  // Divider
+  ctx.strokeStyle = '#1e2d4a';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([3,6]);
+  ctx.beginPath(); ctx.moveTo(W/2, 20); ctx.lineTo(W/2, H-20); ctx.stroke();
+  ctx.setLineDash([]);
+
+  ctx.fillStyle = '#5a6a8a';
+  ctx.font = '9px Space Mono, monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('ELEVACIÓN', W/4, 18);
+  ctx.fillText('PLANTA (corte horizontal)', W*3/4, 18);
+}
+
+// INIT
+update();
+</script>
+</body>
+</html>
